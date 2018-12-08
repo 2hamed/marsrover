@@ -11,17 +11,42 @@ import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
 
+
+    private var roverState: JSONObject? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        savedInstanceState?.let {
+            if (it.containsKey("rover")) {
+                roverState = JSONObject(it.getString("rover"))
+                roverView.post {
+                    processServerResponse(roverState!!)
+                }
+            }
+        }
+
         receiveInstructionsBtn.setOnClickListener {
             updateRover()
         }
-
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        roverState?.let {
+            outState.putString("rover", roverState.toString())
+        }
+        super.onSaveInstanceState(outState)
+    }
+
+    private var inProgress = false
     private fun updateRover() {
+        if (inProgress) {
+            roverView.showMessage(roverView.roverPosition, "I said hang on! I'm not a multi-tasker...")
+            return
+        }
+        inProgress = true
+        roverView.showMessage(roverView.roverPosition, "Hang on! I'm trying to contact HQ...")
         val client = OkHttpClient()
 
         val body = MultipartBody.Builder()
@@ -35,48 +60,57 @@ class MainActivity : AppCompatActivity() {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 e.printStackTrace()
+                inProgress = false
+                roverView.showMessage(roverView.roverPosition, "Oh! Seems I can't contact HQ.")
             }
 
             override fun onResponse(call: Call, response: Response) {
+                inProgress = false
                 if (response.code() == 200) {
                     val body = response.body()!!.string()
                     response.body()!!.close()
                     Log.d(this@MainActivity.javaClass.simpleName, "Data=$body")
 
                     val jsonObject = JSONObject(body)
-                    val weirs = jsonObject.getJSONArray("weirs")
+                    roverState = jsonObject
+                    processServerResponse(jsonObject)
 
-                    roverView.blockedCells = Array(20) {
-                        return@Array Array(10) {
-                            false
-                        }
-                    }
-                    val weirPoints = mutableListOf<Point>()
-                    for (i in 0 until weirs.length()) {
-                        val weir = weirs.getJSONObject(i)
-
-                        val x = weir.getInt("x")
-                        val y = weir.getInt("y")
-
-                        weirPoints.add(Point(x,y))
-                    }
-
-                    val startPoint = jsonObject.getJSONObject("start_point")
-                    val sX = startPoint.getInt("x")
-                    val sY = startPoint.getInt("y")
-
-                    roverView.reset()
-                    roverView.updateLayout(Point(sX, sY), weirPoints)
-
-                    val commands = jsonObject.getString("command")
-
-                    runOnUiThread {
-                        roverView.processCommand(commands)
-                    }
+                } else {
+                    roverView.showMessage(roverView.roverPosition, "Oh! Seems I can't contact HQ.")
                 }
 
             }
         })
+    }
+
+    private fun processServerResponse(jsonObject: JSONObject) {
+        val weirs = jsonObject.getJSONArray("weirs")
+
+        roverView.blockedCells = Array(20) {
+            return@Array Array(10) {
+                false
+            }
+        }
+        val weirPoints = mutableListOf<Point>()
+        for (i in 0 until weirs.length()) {
+            val weir = weirs.getJSONObject(i)
+
+            val x = weir.getInt("x")
+            val y = weir.getInt("y")
+
+            weirPoints.add(Point(x, y))
+        }
+
+        val startPoint = jsonObject.getJSONObject("start_point")
+        val sX = startPoint.getInt("x")
+        val sY = startPoint.getInt("y")
+
+        roverView.reset()
+        roverView.updateLayout(Point(sX, sY), weirPoints)
+
+        val commands = jsonObject.getString("command")
+
+        roverView.processCommand(commands)
     }
 
 }

@@ -6,6 +6,7 @@ import android.util.AttributeSet
 import android.view.View
 import com.hmomeni.marsrover.utils.dpToPx
 import kotlin.concurrent.thread
+import kotlin.math.abs
 import kotlin.math.min
 
 const val UP = 0
@@ -46,6 +47,7 @@ class RoverView : View {
 
 
     var roverPosition = Point(0, 0)
+    private lateinit var roverRect: RectF
 
     fun reset() {
         textBubbleRect = null
@@ -63,14 +65,28 @@ class RoverView : View {
         blocks.forEach {
             blockedCells[it.y][it.x] = true
         }
+        calculateRoverRect()
         invalidate()
     }
+
+    private fun calculateRoverRect() {
+        roverRect = RectF(
+            roverPosition.x * cellWidth + cellPadding,
+            (19 - roverPosition.y) * cellWidth + cellPadding,
+            roverPosition.x * cellWidth + cellWidth,
+            (19 - roverPosition.y) * cellWidth + cellWidth
+        )
+    }
+
+    private val viewRect: RectF = RectF()
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         if (measuredWidth > 0 && measuredHeight > 0) {
             cellWidth = min((measuredWidth - 11 * cellPadding) / 9, (measuredHeight - 11 * cellPadding) / 19)
             setMeasuredDimension(measuredWidth, measuredHeight)
+            viewRect.set(0f, 0f, measuredWidth.toFloat(), measuredHeight.toFloat())
+            calculateRoverRect()
         }
     }
 
@@ -98,12 +114,7 @@ class RoverView : View {
                     canvas.drawBitmap(
                         getRoverBitmap(),
                         null,
-                        RectF(
-                            j * cellWidth + cellPadding,
-                            i * cellWidth + cellPadding,
-                            j * cellWidth + cellWidth,
-                            i * cellWidth + cellWidth
-                        ),
+                        roverRect,
                         null
                     )
                 }
@@ -119,17 +130,34 @@ class RoverView : View {
     private var textBubbleRect: RectF? = null
     private var textPos: Pair<Float, Float>? = null
     private var message: String = ""
-    private fun showMessage(cellXY: Point, message: String) {
+
+
+    fun showMessage(cellXY: Point, message: String) {
         val bounds = Rect()
         messagePaint.getTextBounds(message, 0, message.length, bounds)
 
         this.message = message
+        var top: Float = (19 - cellXY.y) * cellWidth + cellPadding - 200
+        var left: Float = (cellXY.x + 1) * cellWidth + cellPadding
+        var right = left + (bounds.width() + 100)
+        var bottom = top + 200
+
+        if (top < 0) {
+            top += abs(top)
+            bottom = top + 200
+        }
+
+        if (right > measuredWidth) {
+            left -= right - measuredWidth
+            right = left + (bounds.width() + 100)
+        }
+
 
         textBubbleRect = RectF(
-            cellXY.x * cellWidth + cellPadding,
-            (19 - cellXY.y) * cellWidth + cellPadding - 260,
-            cellXY.x * cellWidth + cellPadding + bounds.width() + 100,
-            (19 - cellXY.y) * cellWidth + cellPadding
+            left,
+            top,
+            right,
+            bottom
         )
 
         textPos = Pair(textBubbleRect!!.left + 50, textBubbleRect!!.centerY() - bounds.height())
@@ -183,6 +211,8 @@ class RoverView : View {
             DOWN -> roverPosition.y -= 1
             else -> throw RuntimeException("Invalid direction")
         }
+
+        calculateRoverRect()
         invalidate()
     }
 
@@ -206,6 +236,7 @@ class RoverView : View {
     }
 
     fun processCommand(commands: String) {
+        textBubbleRect = null
         thread {
             for (c in commands) {
                 if (cancelMovement) {
@@ -221,4 +252,5 @@ class RoverView : View {
             }
         }
     }
+
 }
