@@ -11,6 +11,7 @@ import kotlin.math.min
 const val UP = 0
 const val RIGHT = 1
 const val LEFT = 2
+const val DOWN = 3
 
 class RoverView : View {
     constructor(context: Context) : super(context)
@@ -19,6 +20,7 @@ class RoverView : View {
     private var roverUp: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.rover_up)
     private var roverRight: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.rover_right)
     private var roverLeft: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.rover_left)
+    private var roverDown: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.rover_down)
     private var textBubble: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.bubble)
 
     private var cellWidth = dpToPx(24).toFloat()
@@ -140,22 +142,31 @@ class RoverView : View {
         UP -> roverUp
         RIGHT -> roverRight
         LEFT -> roverLeft
+        DOWN -> roverDown
         else -> throw RuntimeException("Invalid direction")
     }
 
     private var direction = UP
     private fun turnRight() {
-        direction = RIGHT
+        direction = when (direction) {
+            UP -> RIGHT
+            RIGHT -> DOWN
+            DOWN -> LEFT
+            LEFT -> UP
+            else -> UP
+        }
         invalidate()
     }
 
-    private fun turnUp() {
-        direction = UP
-        invalidate()
-    }
 
     private fun turnLeft() {
-        direction = LEFT
+        direction = when (direction) {
+            UP -> LEFT
+            LEFT -> DOWN
+            DOWN -> RIGHT
+            RIGHT -> UP
+            else -> UP
+        }
         invalidate()
     }
 
@@ -169,6 +180,7 @@ class RoverView : View {
             UP -> roverPosition.y += 1
             RIGHT -> roverPosition.x += 1
             LEFT -> roverPosition.x -= 1
+            DOWN -> roverPosition.y -= 1
             else -> throw RuntimeException("Invalid direction")
         }
         invalidate()
@@ -181,6 +193,7 @@ class RoverView : View {
             UP -> nextPos.y += 1
             RIGHT -> nextPos.x += 1
             LEFT -> nextPos.x -= 1
+            DOWN -> nextPos.y -= 1
             else -> throw RuntimeException("Invalid direction")
         }
 
@@ -203,7 +216,6 @@ class RoverView : View {
                     'M' -> handler.post { moveOneCell() }
                     'R' -> handler.post { turnRight() }
                     'L' -> handler.post { turnLeft() }
-                    'U' -> handler.post { turnUp() }
                 }
                 Thread.sleep(300)
             }
