@@ -66,17 +66,19 @@ class MainActivity : AppCompatActivity() {
 
             override fun onResponse(call: Call, response: Response) {
                 inProgress = false
-                if (response.code() == 200) {
-                    val body = response.body()!!.string()
-                    response.body()!!.close()
-                    Log.d(this@MainActivity.javaClass.simpleName, "Data=$body")
+                val body = response.body()!!.string()
+                roverView.post {
+                    if (response.code() == 200) {
+                        response.body()!!.close()
+                        Log.d(this@MainActivity.javaClass.simpleName, "Data=$body")
 
-                    val jsonObject = JSONObject(body)
-                    roverState = jsonObject
-                    processServerResponse(jsonObject)
+                        val jsonObject = JSONObject(body)
+                        roverState = jsonObject
+                        processServerResponse(jsonObject)
 
-                } else {
-                    roverView.showMessage(roverView.roverPosition, "Oh! Seems I can't contact HQ.")
+                    } else {
+                        roverView.showMessage(roverView.roverPosition, "Oh! Seems I can't contact HQ.")
+                    }
                 }
 
             }

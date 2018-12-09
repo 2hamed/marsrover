@@ -140,7 +140,7 @@ class RoverView : View {
         var top: Float = (19 - cellXY.y) * cellWidth + cellPadding - 200
         var left: Float = (cellXY.x + 1) * cellWidth + cellPadding
         var right = left + (bounds.width() + 100)
-        var bottom = top + 200
+        var bottom = top + 150
 
         if (top < 0) {
             top += abs(top)
@@ -160,7 +160,7 @@ class RoverView : View {
             bottom
         )
 
-        textPos = Pair(textBubbleRect!!.left + 50, textBubbleRect!!.centerY() - bounds.height())
+        textPos = Pair(textBubbleRect!!.left + 50, textBubbleRect!!.centerY())
 
         invalidate()
 
@@ -241,6 +241,9 @@ class RoverView : View {
             for (c in commands) {
                 if (cancelMovement) {
                     cancelMovement = false
+                    return@thread
+                }
+                if (handler == null) {
                     return@thread
                 }
                 when (c) {
