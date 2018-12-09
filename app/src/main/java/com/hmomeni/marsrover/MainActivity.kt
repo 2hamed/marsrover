@@ -65,7 +65,9 @@ class MainActivity : AppCompatActivity() {
             override fun onFailure(call: Call, e: IOException) {
                 e.printStackTrace()
                 inProgress = false
-                roverView.showMessage(roverView.roverPosition, "Oh! Seems I can't contact HQ.")
+                runOnUiThread {
+                    roverView.showMessage(roverView.roverPosition, "Oh! Seems I can't contact HQ.")
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
