@@ -32,6 +32,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // let's save the instance in case of a configuration change
+    // we could have used the ViewModel pattern here
     override fun onSaveInstanceState(outState: Bundle) {
         roverState?.let {
             outState.putString("rover", roverState.toString())
@@ -53,10 +55,12 @@ class MainActivity : AppCompatActivity() {
             .setType(MultipartBody.FORM)
             .addFormDataPart("rover_id", "12856496")
             .build()
+
         val request = Request.Builder()
             .url("https://roverapi.reev.ca")
             .post(body)
             .build()
+
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 e.printStackTrace()
@@ -85,6 +89,7 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    // we could have used Gson for a much easier json parsing
     private fun processServerResponse(jsonObject: JSONObject) {
         val weirs = jsonObject.getJSONArray("weirs")
 
