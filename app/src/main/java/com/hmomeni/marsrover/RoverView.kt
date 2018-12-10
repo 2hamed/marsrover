@@ -72,6 +72,7 @@ class RoverView : View {
     private var cancelMovement = false
     private var isBoulder = false
     private var boulderPosition: Point? = null
+    private var partialCommand: String? = null
 
 
     fun reset() {
@@ -133,12 +134,13 @@ class RoverView : View {
 
     fun processCommand(commands: String) {
         textBubbleRect = null
-
+        partialCommand = null
         // we don't want to freeze the UI while waiting for our timeout
         thread {
-            for (c in commands) {
+            commands.forEachIndexed { i, c ->
                 if (cancelMovement) {
                     cancelMovement = false
+                    partialCommand = commands.substring(i - 1)
                     return@thread
                 }
 
@@ -242,12 +244,14 @@ class RoverView : View {
         if (!checkPath()) {
             playBlockSound()
             cancelMovement = true
-            showMessage(roverPosition, "Hey, I can't go that way!")
             if (isBoulder && roverListener != null) {
+                showMessage(roverPosition, "Hey! The road's blocked.")
                 postDelayed({
                     showMessage(roverPosition, "Wait! I can destroy this boulder with my laser!")
                     roverListener?.showLazerButton()
-                }, 2000)
+                }, 1000)
+            } else if (!isBoulder) {
+                showMessage(roverPosition, "This is as far as I can go!")
             }
             return
         }
@@ -335,6 +339,9 @@ class RoverView : View {
         postDelayed({
             showLazer = false
             invalidate()
+            handler.postDelayed({
+                processCommand(partialCommand!!)
+            }, 300)
         }, 300)
 
         roverListener?.hideLazerButton()
