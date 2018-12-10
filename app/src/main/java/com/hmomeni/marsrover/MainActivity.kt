@@ -4,19 +4,21 @@ import android.graphics.Point
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
+import android.view.View
 import kotlinx.android.synthetic.main.activity_main.*
 import okhttp3.*
 import org.json.JSONObject
 import java.io.IOException
 
-class MainActivity : AppCompatActivity() {
-
+class MainActivity : AppCompatActivity(), RoverView.RoverListener {
 
     private var roverState: JSONObject? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        roverView.roverListener = this
 
         savedInstanceState?.let {
             if (it.containsKey("rover")) {
@@ -29,6 +31,10 @@ class MainActivity : AppCompatActivity() {
 
         receiveInstructionsBtn.setOnClickListener {
             updateRover()
+        }
+
+        lazerBtn.setOnClickListener {
+            roverView.useLazer()
         }
     }
 
@@ -120,6 +126,14 @@ class MainActivity : AppCompatActivity() {
         val commands = jsonObject.getString("command")
 
         roverView.processCommand(commands)
+    }
+
+    override fun showLazerButton() {
+        lazerBtn.visibility = View.VISIBLE
+    }
+
+    override fun hideLazerButton() {
+        lazerBtn.visibility = View.GONE
     }
 
 }

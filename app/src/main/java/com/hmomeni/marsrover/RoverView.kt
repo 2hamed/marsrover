@@ -2,6 +2,8 @@ package com.hmomeni.marsrover
 
 import android.content.Context
 import android.graphics.*
+import android.media.MediaPlayer
+import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import com.hmomeni.marsrover.utils.dpToPx
@@ -14,17 +16,23 @@ const val RIGHT = 1
 const val LEFT = 2
 const val DOWN = 3
 
+const val SOUND_MOVE = 1
+const val SOUND_BLOCK = 2
+const val SOUND_LAZER = 3
+
 class RoverView : View {
     constructor(context: Context) : super(context)
     constructor(context: Context, attributeSet: AttributeSet) : super(context, attributeSet)
 
-
+    var roverListener: RoverListener? = null
     var roverPosition = Point(0, 0)
     var blockedCells = Array(20) {
         return@Array Array(10) {
             false
         }
     }
+
+    private val mediaPlayer = MediaPlayer()
 
     private var roverUp: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.rover_up)
     private var roverRight: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.rover_right)
@@ -41,12 +49,17 @@ class RoverView : View {
         color = Color.RED
     }
 
-    private val messagePaint = Paint().apply {
+    private val messagePaint = TextPaint().apply {
         isAntiAlias = true
         color = Color.BLACK
         textSize = dpToPx(14).toFloat()
     }
 
+    private val lazerPaint = Paint().apply {
+        color = Color.BLUE
+    }
+    private val lazerRect = RectF()
+    private var showLazer = false
 
     private val viewRect: RectF = RectF()
 
@@ -57,6 +70,8 @@ class RoverView : View {
     private var textPos: Pair<Float, Float>? = null
     private var message: String = ""
     private var cancelMovement = false
+    private var isBoulder = false
+    private var boulderPosition: Point? = null
 
 
     fun reset() {
@@ -85,10 +100,10 @@ class RoverView : View {
         messagePaint.getTextBounds(message, 0, message.length, bounds)
 
         this.message = message
-        var top: Float = (19 - cellXY.y) * cellWidth + cellPadding - 200
+        var top: Float = (19 - cellXY.y) * cellWidth + cellPadding - (bounds.height() + 50)
         var left: Float = (cellXY.x + 1) * cellWidth + cellPadding
         var right = left + (bounds.width() + 100)
-        var bottom = top + 150
+        var bottom = top + bounds.height() + 50
 
         // let's check that our message bubble doesn't exceeds the view boundaries
         // vertically
@@ -141,6 +156,47 @@ class RoverView : View {
         }
     }
 
+    private var lastPlayedSound = -1
+
+    private fun playMoveSound() {
+        if (lastPlayedSound == SOUND_MOVE) {
+            mediaPlayer.seekTo(0)
+        } else {
+            val afd = context.resources.openRawResourceFd(R.raw.beep_short_on)
+            mediaPlayer.reset()
+            mediaPlayer.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            mediaPlayer.prepare()
+        }
+        mediaPlayer.start()
+        lastPlayedSound = SOUND_MOVE
+    }
+
+    private fun playBlockSound() {
+        if (lastPlayedSound == SOUND_BLOCK) {
+            mediaPlayer.seekTo(0)
+        } else {
+            val afd = context.resources.openRawResourceFd(R.raw.zap_digi_up)
+            mediaPlayer.reset()
+            mediaPlayer.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            mediaPlayer.prepare()
+        }
+        mediaPlayer.start()
+        lastPlayedSound = SOUND_BLOCK
+    }
+
+    private fun playLazerSound() {
+        if (lastPlayedSound == SOUND_LAZER) {
+            mediaPlayer.seekTo(0)
+        } else {
+            val afd = context.resources.openRawResourceFd(R.raw.zap_clang)
+            mediaPlayer.reset()
+            mediaPlayer.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            mediaPlayer.prepare()
+        }
+        mediaPlayer.start()
+        lastPlayedSound = SOUND_LAZER
+    }
+
     private fun calculateRoverRect() {
         roverRect = RectF(
             roverPosition.x * cellWidth + cellPadding,
@@ -184,10 +240,18 @@ class RoverView : View {
 
     private fun moveOneCell() {
         if (!checkPath()) {
+            playBlockSound()
             cancelMovement = true
             showMessage(roverPosition, "Hey, I can't go that way!")
+            if (isBoulder && roverListener != null) {
+                postDelayed({
+                    showMessage(roverPosition, "Wait! I can destroy this boulder with my laser!")
+                    roverListener?.showLazerButton()
+                }, 2000)
+            }
             return
         }
+        playMoveSound()
         when (direction) {
             UP -> roverPosition.y += 1
             RIGHT -> roverPosition.x += 1
@@ -209,13 +273,71 @@ class RoverView : View {
             DOWN -> nextPos.y -= 1
             else -> throw RuntimeException("Invalid direction")
         }
-
+        isBoulder = false
         return when {
             nextPos.y !in 0..19 -> false
             nextPos.x !in 0..9 -> false
-            blockedCells[nextPos.y][nextPos.x] -> false
+            blockedCells[nextPos.y][nextPos.x] -> {
+                boulderPosition = nextPos
+                isBoulder = true
+                false
+            }
             else -> true
         }
+    }
+
+    fun useLazer() {
+        prepareLazer()
+    }
+
+    private fun prepareLazer() {
+        val left: Float
+        val top: Float
+        val right: Float
+        val bottom: Float
+        when (direction) {
+            RIGHT -> {
+                left = roverRect.right
+                top = roverRect.centerY() - 10
+                right = left + viewRect.width()
+                bottom = top + 10
+            }
+            LEFT -> {
+                left = roverRect.left
+                top = roverRect.centerY() - 10
+                right = left - viewRect.width()
+                bottom = top + 10
+            }
+            DOWN -> {
+                left = roverRect.centerX() + 10
+                top = roverRect.bottom
+                right = left - 10
+                bottom = top + viewRect.height()
+            }
+            UP -> {
+                left = roverRect.centerX() - 10
+                top = roverRect.top
+                right = left + 10
+                bottom = top - viewRect.height()
+            }
+            else -> throw RuntimeException()
+        }
+
+        lazerRect.set(left, top, right, bottom)
+        showLazer = true
+
+        blockedCells[boulderPosition!!.y][boulderPosition!!.x] = false
+
+        invalidate()
+
+        playLazerSound()
+
+        postDelayed({
+            showLazer = false
+            invalidate()
+        }, 300)
+
+        roverListener?.hideLazerButton()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -266,6 +388,13 @@ class RoverView : View {
             canvas.drawText(message, textPos!!.first, textPos!!.second, messagePaint)
         }
 
+        if (showLazer) {
+            canvas.drawRect(lazerRect, lazerPaint)
+        }
     }
 
+    interface RoverListener {
+        fun showLazerButton()
+        fun hideLazerButton()
+    }
 }
