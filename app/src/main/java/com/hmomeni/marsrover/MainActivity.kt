@@ -5,10 +5,13 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.view.View
+import com.hmomeni.marsrover.utils.UnsafeOkHttpClient
 import kotlinx.android.synthetic.main.activity_main.*
 import okhttp3.*
 import org.json.JSONObject
 import java.io.IOException
+import javax.net.ssl.*
+
 
 class MainActivity : AppCompatActivity(), RoverView.RoverListener {
 
@@ -50,12 +53,15 @@ class MainActivity : AppCompatActivity(), RoverView.RoverListener {
     private var inProgress = false
     private fun updateRover() {
         if (inProgress) {
-            roverView.showMessage(roverView.roverPosition, "I said hang on! I'm not a multi-tasker...")
+            roverView.showMessage(
+                roverView.roverPosition,
+                "I said hang on! I'm not a multi-tasker..."
+            )
             return
         }
         inProgress = true
         roverView.showMessage(roverView.roverPosition, "Hang on! I'm trying to contact HQ...")
-        val client = OkHttpClient()
+        val client = UnsafeOkHttpClient.getUnsafeOkHttpClient().build()
 
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -89,7 +95,10 @@ class MainActivity : AppCompatActivity(), RoverView.RoverListener {
                         processServerResponse(jsonObject)
 
                     } else {
-                        roverView.showMessage(roverView.roverPosition, "Oh! Seems I can't contact HQ.")
+                        roverView.showMessage(
+                            roverView.roverPosition,
+                            "Oh! Seems I can't contact HQ."
+                        )
                     }
                 }
 

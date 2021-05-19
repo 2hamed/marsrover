@@ -89,7 +89,12 @@ class RoverView : View {
     fun updateLayout(startPoint: Point, blocks: List<Point>) {
         roverPosition = Point(startPoint)
         blocks.forEach {
-            blockedCells[it.y][it.x] = true
+            try {
+                blockedCells[it.y][it.x] = true
+            } catch (e: ArrayIndexOutOfBoundsException) {
+                showMessage(roverPosition, "Invalid instructions from HQ!")
+            }
+
         }
         calculateRoverRect()
         invalidate()
@@ -350,7 +355,10 @@ class RoverView : View {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         if (measuredWidth > 0 && measuredHeight > 0) {
-            cellWidth = min((measuredWidth - 11 * cellPadding) / 9, (measuredHeight - 11 * cellPadding) / 19)
+            cellWidth = min(
+                (measuredWidth - 11 * cellPadding) / 9,
+                (measuredHeight - 11 * cellPadding) / 19
+            )
             setMeasuredDimension(measuredWidth, measuredHeight)
             viewRect.set(0f, 0f, measuredWidth.toFloat(), measuredHeight.toFloat())
             calculateRoverRect()
