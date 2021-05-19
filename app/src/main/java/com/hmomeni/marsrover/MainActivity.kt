@@ -2,9 +2,9 @@ package com.hmomeni.marsrover
 
 import android.graphics.Point
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.view.View
+import androidx.appcompat.app.AppCompatActivity
 import com.hmomeni.marsrover.utils.UnsafeOkHttpClient
 import kotlinx.android.synthetic.main.activity_main.*
 import okhttp3.*
